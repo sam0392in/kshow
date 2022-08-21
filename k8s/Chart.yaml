@@ -1,0 +1,9 @@
+apiVersion: v1
+name: kshow
+description: The api server delivers github bearer token 
+version: "0.1"
+home: "https://github.com/holidu/github-bearer-token-renderer.git"
+sources:
+  - "https://github.com/holidugithub-bearer-token-renderer.git"
+maintainers:
+  - name: Samarth 

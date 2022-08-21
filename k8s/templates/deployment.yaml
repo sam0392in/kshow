@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    app: {{ .Values.name }}
+    chart: {{ .Chart.Name }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicas }}
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+      chart: {{ .Chart.Name }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+        chart: {{ .Chart.Name }}
+        release: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+      - image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        name: {{ .Values.name }}
+        args:
+        - -c
+        - while true; do sleep 100000; done
+        command:
+        - /bin/sh
+        env:
+          - name: FLASK_ENV
+            value: "production"
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: {{ .Values.containerPort }}
+            name: http
+            protocol: TCP
+        resources:
+{{ toYaml .Values.resources | indent 12 }}
+{{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+{{- end }}
+      {{- if .Values.spot.enabled }}            
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: {{ .Values.spot.taint.key }}
+                operator: {{ .Values.spot.taint.operator }}
+                values:
+                - {{ .Values.spot.spotnodegroup }}
+                - {{ .Values.spot.backupnodegroup }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: {{ .Values.spot.taint.key }}
+                operator: {{ .Values.spot.taint.operator }}
+                values:
+                - {{ .Values.spot.spotnodegroup }} 
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - {{ .Values.name }}
+            topologyKey: kubernetes.io/hostname
+      {{- end }}  

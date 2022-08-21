@@ -1,0 +1,38 @@
+name: kshow
+namespace: devops-services
+
+replicas: 1
+
+image:
+  repository: "sam0392in/sam"
+  tag: "devbox"
+
+containerPort: 9000
+
+serviceAccount:
+  enabled: true
+  name: "kshow-sa"
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::608695500222:role/devops-service-role
+
+resources:
+  limits:
+   cpu: 500m
+   memory: 512Mi
+  requests:
+   cpu: 100m
+   memory: 128Mi
+
+spot:
+  enabled: true
+  taint:
+    key: nature
+    operator: In
+  spotnodegroup: spot
+  backupnodegroup: spot
+
+tolerations:
+- effect: NoSchedule
+  key: nature
+  operator: Equal
+  value: spot
