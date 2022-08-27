@@ -1,7 +1,6 @@
 package client
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
 
@@ -39,23 +38,21 @@ func outCluster(kubeconfig string) (*kubernetes.Clientset, error) {
 
 func GetK8sClient() (*kubernetes.Clientset, error) {
 	var (
-		kubeconfig *string
+		kubeconfig string
 		client     *kubernetes.Clientset
 		err        error
 	)
 	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		kubeconfig = filepath.Join(home, ".kube", "config")
 	}
-	flag.Parse()
-	_, err = os.Stat(*kubeconfig)
+	_, err = os.Stat(kubeconfig)
 	if err != nil {
 		logger.Error(err.Error())
 	}
 	if os.IsNotExist(err) {
 		client, err = inCluster()
 	} else {
-		client, err = outCluster(*kubeconfig)
+		client, err = outCluster(kubeconfig)
 	}
-
 	return client, err
 }
