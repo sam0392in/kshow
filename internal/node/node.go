@@ -2,7 +2,12 @@ package node
 
 import (
 	"context"
+	"fmt"
 	k8sclient "kshow/internal/client"
+	"os"
+	"strconv"
+	"text/tabwriter"
+	"time"
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
@@ -37,4 +42,120 @@ func ListNodes() ([]v1.Node, error) {
 		return nil, err
 	}
 	return nodes.Items, nil
+}
+
+// Print List of Nodes
+func GetNodeDetails() {
+	nodes, err := ListNodes()
+	if err != nil {
+		logger.Error(err.Error())
+	}
+	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
+	fmt.Fprintln(w, "NODE\t\tSTATUS\t\tAGE\t\tVERSION")
+
+	for _, n := range nodes {
+
+		name := n.Name
+
+		// node age
+		var ageN string
+		nodeCreated := n.CreationTimestamp
+		age := time.Since(nodeCreated.Time).Round(time.Second)
+		ageN = age.String()
+		if age.Hours() > 8760 {
+			ageInYears := int((age.Hours() + (age.Minutes() / 60)) / 8760)
+			ageN = strconv.Itoa(ageInYears) + "y"
+		} else if age.Hours() > 24 {
+			ageInDays := int((age.Hours() + (age.Minutes() / 60)) / 24)
+			ageN = strconv.Itoa(ageInDays) + "d"
+		} else if age.Hours() > 1 {
+			ageInHours := int(age.Hours() + (age.Minutes() / 60))
+			ageN = strconv.Itoa(ageInHours) + "h"
+		} else {
+			ageInMin := int(age.Minutes() + (age.Seconds() / 60))
+			ageN = strconv.Itoa(ageInMin) + "m"
+		}
+
+		// node status
+		var nstatus string
+		for _, s := range n.Status.Conditions {
+			if s.Reason == "KubeletReady" {
+				nstatus = string(s.Type)
+			}
+		}
+
+		// Node k8s version
+		nk8sVersion := n.Status.NodeInfo.KubeletVersion
+
+		data := name + "\t\t" + nstatus + "\t\t" + ageN + "\t\t" + nk8sVersion
+		fmt.Fprintln(w, data)
+	}
+	w.Flush()
+}
+
+// Print Detailed Node Info
+func DetailedNodeInfo() {
+	nodes, err := ListNodes()
+	if err != nil {
+		logger.Error(err.Error())
+	}
+	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
+	fmt.Fprintln(w, "NODE\t\tSTATUS\t\tAGE\t\tNODEGROUP\t\tTENANCY\t\tINSTANCE-TYPE\t\tARCH\t\tAWS-ZONE\t\tVERSION")
+
+	for _, n := range nodes {
+
+		name := n.Name
+
+		// node age
+		var ageN string
+		nodeCreated := n.CreationTimestamp
+		age := time.Since(nodeCreated.Time).Round(time.Second)
+		ageN = age.String()
+		if age.Hours() > 8760 {
+			ageInYears := int((age.Hours() + (age.Minutes() / 60)) / 8760)
+			ageN = strconv.Itoa(ageInYears) + "y"
+		} else if age.Hours() > 24 {
+			ageInDays := int((age.Hours() + (age.Minutes() / 60)) / 24)
+			ageN = strconv.Itoa(ageInDays) + "d"
+		} else if age.Hours() > 1 {
+			ageInHours := int(age.Hours() + (age.Minutes() / 60))
+			ageN = strconv.Itoa(ageInHours) + "h"
+		} else {
+			ageInMin := int(age.Minutes() + (age.Seconds() / 60))
+			ageN = strconv.Itoa(ageInMin) + "m"
+		}
+
+		// node status
+		var nstatus string
+		for _, s := range n.Status.Conditions {
+			if s.Reason == "KubeletReady" {
+				nstatus = string(s.Type)
+				if nstatus == "" {
+					nstatus = "NotReady"
+				}
+			}
+		}
+
+		// nodegroup
+		nodegroup := n.ObjectMeta.Labels["eks.amazonaws.com/nodegroup"]
+
+		// Tenancy
+		nodeTenancy := n.ObjectMeta.Labels["eks.amazonaws.com/capacityType"]
+
+		// Instance Type
+		nodeInstanceType := n.ObjectMeta.Labels["node.kubernetes.io/instance-type"]
+
+		// Architecture
+		arch := n.ObjectMeta.Labels["beta.kubernetes.io/arch"]
+
+		// AWS Zone
+		zone := n.ObjectMeta.Labels["topology.kubernetes.io/zone"]
+
+		// Node k8s version
+		nk8sVersion := n.Status.NodeInfo.KubeletVersion
+
+		data := name + "\t\t" + nstatus + "\t\t" + ageN + "\t\t" + nodegroup + "\t\t" + nodeTenancy + "\t\t" + nodeInstanceType + "\t\t" + arch + "\t\t" + zone + "\t\t" + nk8sVersion
+		fmt.Fprintln(w, data)
+	}
+	w.Flush()
 }
