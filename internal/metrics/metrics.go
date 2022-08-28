@@ -1,7 +1,10 @@
 // reference:
 /*
-	https://stackoverflow.com/questions/52029656/how-to-retrieve-kubernetes-metrics-via-client-go-and-golang
+	API:
 	https://github.com/kubernetes/metrics/tree/master/pkg/apis/metrics
+
+	Reference Implementation:
+	https://stackoverflow.com/questions/52029656/how-to-retrieve-kubernetes-metrics-via-client-go-and-golang
 */
 
 package metrics
@@ -10,6 +13,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"kshow/internal/pod"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -54,18 +58,35 @@ func PrintContainerMetrics(namespace string) {
 	if err != nil {
 		logger.Error(err.Error())
 	}
+	pods, err := pod.GetPods(&namespace)
+
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
-	fmt.Fprintln(w, "NAMESPACE\t\tPOD\t\tCONTAINER\t\tCPU\t\tMemory")
+	fmt.Fprintln(w, "NAMESPACE\t\tPOD\t\tCONTAINER\t\tCURRENT-CPU\t\tREQUESTED-CPU\t\tLIMIT-CPU\t\tCURRENT-MEMORY\t\tREQUESTED-MEMORY\t\tLIMIT-MEMORY")
+
 	for _, m := range podMetricsList.Items {
-		var (
-			cpu float32
-		)
-		cpu = 0
-		for _, c := range m.Containers {
-			cpu = float32(c.Usage.Cpu().MilliValue())
-			mem := c.Usage.Memory().Value() / 1048859
-			data := m.Namespace + "\t\t" + m.Name + "\t\t" + c.Name + "\t\t" + strconv.Itoa(int(cpu)) + "m" + "\t\t" + strconv.Itoa(int(mem)) + "Mi"
-			fmt.Fprintln(w, data)
+		for _, p := range pods.Items {
+			var (
+				cpu                                            float32
+				requestedCPU, requestedMem, LimitCPU, LimitMem string
+			)
+			if m.Name == p.Name {
+				cpu = 0
+				for _, c := range m.Containers {
+					for _, c1 := range p.Spec.Containers {
+						if c.Name == c1.Name {
+							requestedCPU = c1.Resources.Requests.Cpu().String()
+							requestedMem = c1.Resources.Requests.Memory().String()
+							LimitCPU = c1.Resources.Limits.Cpu().String()
+							LimitMem = c1.Resources.Limits.Memory().String()
+							break
+						}
+					}
+					cpu = float32(c.Usage.Cpu().MilliValue())
+					mem := c.Usage.Memory().Value() / 1048859
+					data := m.Namespace + "\t\t" + m.Name + "\t\t" + c.Name + "\t\t" + strconv.Itoa(int(cpu)) + "m" + "\t\t" + requestedCPU + "\t\t" + LimitCPU + "\t\t" + strconv.Itoa(int(mem)) + "Mi" + "\t\t" + requestedMem + "\t\t" + LimitMem
+					fmt.Fprintln(w, data)
+				}
+			}
 		}
 	}
 	w.Flush()

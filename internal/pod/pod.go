@@ -42,7 +42,7 @@ func client(namespace *string) (*kubernetes.Clientset, error) {
 	return clientset, err
 }
 
-func getPods(namespace *string) (*v1.PodList, error) {
+func GetPods(namespace *string) (*v1.PodList, error) {
 	clientset, err := client(namespace)
 	if err != nil {
 		logger.Error(err.Error())
@@ -54,7 +54,7 @@ func getPods(namespace *string) (*v1.PodList, error) {
 
 // List pods
 func ListPods(namespace string) {
-	pods, err := getPods(&namespace)
+	pods, err := GetPods(&namespace)
 	if err != nil {
 		logger.Error(err.Error())
 	}
@@ -68,7 +68,10 @@ func ListPods(namespace string) {
 		podCreationTime := pod.GetCreationTimestamp()
 		age := time.Since(podCreationTime.Time).Round(time.Second)
 		ageS = age.String()
-		if age.Hours() > 24 {
+		if age.Hours() > 8760 {
+			ageInYears := int((age.Hours() + (age.Minutes() / 60)) / 8760)
+			ageS = strconv.Itoa(ageInYears) + "y"
+		} else if age.Hours() > 24 {
 			ageInDays := int((age.Hours() + (age.Minutes() / 60)) / 24)
 			ageS = strconv.Itoa(ageInDays) + "d"
 		} else if age.Hours() > 1 {
@@ -110,7 +113,7 @@ func ListPods(namespace string) {
 
 // List Pods with node tenancy (only for AWS EKS)
 func ListPodswithNodeTenency(namespace string) {
-	pods, err := getPods(&namespace)
+	pods, err := GetPods(&namespace)
 	if err != nil {
 		logger.Error(err.Error())
 	}

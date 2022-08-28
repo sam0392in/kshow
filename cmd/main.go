@@ -3,6 +3,7 @@ package main
 import (
 	"kshow/internal/deployment"
 	"kshow/internal/metrics"
+	"kshow/internal/node"
 	"kshow/internal/pod"
 	"os"
 
@@ -15,16 +16,16 @@ var (
 
 	app = kingpin.New("kshow", "A command-line tool for kubernetes.")
 
-	get            = app.Command("get", "k8s object type list")
-	k8sObject      = get.Arg("k8s object", "Specify k8s object").Required().String()
+	get            = app.Command("get", "get details of kubernetes objects")
+	k8sObject      = get.Arg("k8s object", "allowed objects: deployment, pods").Required().String()
 	namespace      = get.Flag("namespace", "Specify namespace. default is all namespace").Default("").String()
-	showToleration = get.Flag("show-tolerations", "show toleration of deloyment").Bool()
-	// Pod Specific Arguments
-	showNodeTenancy = get.Flag("show-tenancy", "Show tenancy of node. Specific to AWS").Bool()
+	showToleration = get.Flag("show-tolerations", "show tolerations of a deloyment").Bool()
+	// Pod and Node Specific Argument
+	detailed = get.Flag("detailed", "Show extra details").Bool()
 
-	resourceStats   = app.Command("resource-stats", "Show resource statistics")
-	statsNamespace  = resourceStats.Flag("namespace", "Specify namespace. default is all namespace").Default("").String()
-	statsContainers = resourceStats.Flag("containers", "").Bool()
+	resourceStats  = app.Command("resource-stats", "Show current resource statistics")
+	statsNamespace = resourceStats.Flag("namespace", "Specify namespace. default is all namespace").Default("").String()
+	statsDetailed  = resourceStats.Flag("detailed", "show detailed resource statistics").Bool()
 )
 
 func init() {
@@ -41,15 +42,23 @@ func getDeployments() {
 }
 
 func getPods() {
-	if *showNodeTenancy {
+	if *detailed {
 		pod.ListPodswithNodeTenency(*namespace)
 	} else {
 		pod.ListPods(*namespace)
 	}
 }
 
+func getNodes() {
+	if *detailed {
+		node.DetailedNodeInfo()
+	} else {
+		node.GetNodeDetails()
+	}
+}
+
 func getMetrics() {
-	if *statsContainers {
+	if *statsDetailed {
 		metrics.PrintContainerMetrics(*statsNamespace)
 	} else {
 		metrics.PrintPodMetrics(*statsNamespace)
@@ -62,6 +71,8 @@ func getObject() {
 		getDeployments()
 	case "pods", "pod":
 		getPods()
+	case "node", "nodes":
+		getNodes()
 	}
 }
 
