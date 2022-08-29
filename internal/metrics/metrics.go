@@ -27,15 +27,14 @@ package metrics
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"text/tabwriter"
 
+	"github.com/sam0392in/kshow/internal/node"
 	"github.com/sam0392in/kshow/internal/pod"
-
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
@@ -45,27 +44,106 @@ import (
 )
 
 var (
-	logger *zap.Logger
+	logger      *zap.Logger
+	lineBreaker string
 )
 
 func init() {
 	logger, _ = zap.NewProduction()
+	lineBreaker = "--------------------------------------------------------------------------------------------------------------------------------------------------------"
 
 }
 
 func client(namespace *string) (*metricsv.Clientset, error) {
-	var kubeconfig *string
+	var kubeconfig string
 	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		kubeconfig = filepath.Join(home, ".kube", "config")
 	}
-	flag.Parse()
-	_, err := os.Stat(*kubeconfig)
-	config, _ := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	_, err := os.Stat(kubeconfig)
+	config, _ := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	clientset, err := metricsv.NewForConfig(config)
 	if err != nil {
 		logger.Error(err.Error())
 	}
 	return clientset, err
+}
+
+// Get total CPU and MEM of the cluster
+func GetTotalClusterResources() (float64, float64) {
+	var cpu, mem float64
+	nodes, err := node.ListNodes()
+	if err != nil {
+		logger.Error(err.Error())
+	}
+
+	for _, n := range nodes {
+		cpu += n.Status.Allocatable.Cpu().AsApproximateFloat64()
+		mem += (n.Status.Allocatable.Memory().AsApproximateFloat64()) / 1048859000
+	}
+	return cpu, mem
+}
+
+// Get total CPU and MEM of the namespace
+func GetTotalNamespaceResources(namespace string) (float64, float64) {
+	var (
+		nsCPU, nsMEM float64
+	)
+	nsCPU = 0
+	nsMEM = 0
+	clientset, err := client(&namespace)
+	podMetricsList, err := clientset.MetricsV1beta1().PodMetricses(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		logger.Error(err.Error())
+	}
+	pods, err := pod.GetPods(&namespace)
+	if err != nil {
+		logger.Error(err.Error())
+	}
+
+	// for _, p := range pods.Items {
+	// 	for _, c := range p.Spec.Containers {
+
+	// 		reqcpu := (c.Resources.Requests.Cpu().AsApproximateFloat64())
+	// 		reqmem := c.Resources.Requests.Memory().AsApproximateFloat64() / 1048859000
+	// 		curentcpu := c.
+	// 		cpu := float32(c.Usage.Cpu().MilliValue())
+	// 		mem := c.Usage.Memory().Value() / 1048859
+	// 	}
+	// }
+	for _, m := range podMetricsList.Items {
+		for _, p := range pods.Items {
+			var (
+				cpu, mem, requestedCPU, requestedMem float64
+			)
+			if m.Name == p.Name {
+				for _, c := range m.Containers {
+					for _, c1 := range p.Spec.Containers {
+						if c.Name == c1.Name {
+							requestedCPU = c1.Resources.Requests.Cpu().AsApproximateFloat64()
+							requestedMem = c1.Resources.Requests.Memory().AsApproximateFloat64() / 1048859000
+							break
+						}
+					}
+					cpu = float64(c.Usage.Cpu().AsApproximateFloat64())
+					mem = float64(c.Usage.Memory().AsApproximateFloat64() / 1048859000)
+
+				}
+				// CPU and Memory will be taken in account which ever is higher of Requested VS Current
+				if cpu > requestedCPU {
+					nsCPU += cpu
+				} else {
+					nsCPU += requestedCPU
+				}
+
+				if mem > requestedMem {
+					nsMEM += mem
+				} else {
+					nsMEM += requestedMem
+				}
+			}
+		}
+	}
+	return nsCPU, nsMEM
 }
 
 // Get container resource usage
@@ -77,8 +155,26 @@ func PrintContainerMetrics(namespace string) {
 	}
 	pods, err := pod.GetPods(&namespace)
 
+	// Get Total Cluster stats
+	totalCPU, totalMem := GetTotalClusterResources()
+
+	// Get Total NS Stats
+	nsCPU, nsMem := GetTotalNamespaceResources(namespace)
+
+	// Get % Stats
+	perCPU := (nsCPU / totalCPU) * 100
+	perMEM := (nsMem / totalMem) * 100
+
+	// Print Header
+	fmt.Println(lineBreaker)
+	fmt.Println("Cluster Stats: \t\tTotal CPU: " + strconv.Itoa(int(totalCPU)) + " Cores\t\tTotal Memory: " + strconv.Itoa(int(totalMem)) + " GB")
+	fmt.Println("Namespace Stats: \tConsumed CPU: " + strconv.Itoa(int(nsCPU)) + " Cores\t\tConsumed Memory: " + strconv.Itoa(int(nsMem)) + " GB")
+	fmt.Println("% Stats: \t\tCPU: " + fmt.Sprintf("%.2f", perCPU) + " %\t\t\tMemory: " + fmt.Sprintf("%.2f", perMEM) + " %")
+	fmt.Println(lineBreaker)
+
+	// Container stats
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
-	fmt.Fprintln(w, "NAMESPACE\t\tPOD\t\tCONTAINER\t\tCURRENT-CPU\t\tREQUESTED-CPU\t\tLIMIT-CPU\t\tCURRENT-MEMORY\t\tREQUESTED-MEMORY\t\tLIMIT-MEMORY")
+	fmt.Fprintln(w, "NAMESPACE\t\tPOD\t\tCONTAINER\t\tCURRENT-CPU\t\tREQ-CPU\t\tLIMIT-CPU\t\tCURRENT-MEM\t\tREQ-MEM\t\tLIMIT-MEM")
 
 	for _, m := range podMetricsList.Items {
 		for _, p := range pods.Items {
@@ -146,5 +242,6 @@ func PrintPodMetrics(namespace string) {
 		data := m.Namespace + "\t\t" + m.Name + "\t" + strconv.Itoa(int(cpu)) + "m" + "\t\t" + strconv.Itoa(int(mem)) + "Mi"
 		fmt.Fprintln(w, data)
 	}
+
 	w.Flush()
 }

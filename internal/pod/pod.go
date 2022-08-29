@@ -101,15 +101,27 @@ func ListPods(namespace string) {
 
 		// Get the status of each of the pods
 		podStatus := pod.Status
-
+		var status string
+		if podStatus.Phase != "Running" && podStatus.Phase != "Succeeded" && len(podStatus.ContainerStatuses) != 0 {
+			for _, cs := range podStatus.ContainerStatuses {
+				if !(cs.Ready) && (cs.State.Waiting != nil) {
+					status = cs.State.Waiting.Reason
+					break
+				} else {
+					status = string(podStatus.Phase)
+				}
+			}
+		} else {
+			status = string(podStatus.Phase)
+		}
 		var containerRestarts int32
 		var containerReady int
 		var totalContainers int
 
 		// If a pod has multiple containers, get the status from all
-		for container := range pod.Spec.Containers {
-			containerRestarts += podStatus.ContainerStatuses[container].RestartCount
-			if podStatus.ContainerStatuses[container].Ready {
+		for _, s := range pod.Status.ContainerStatuses {
+			containerRestarts += s.RestartCount
+			if s.Ready {
 				containerReady++
 			}
 			totalContainers++
@@ -119,7 +131,7 @@ func ListPods(namespace string) {
 		name := pod.Name
 		namespace := pod.Namespace
 		ready := fmt.Sprintf("%v/%v", containerReady, totalContainers)
-		status := fmt.Sprintf("%v", podStatus.Phase)
+		// status := fmt.Sprintf("%v", podStatus.)
 		restarts := fmt.Sprintf("%v", containerRestarts)
 
 		data := name + "\t\t" + ready + "\t\t" + status + "\t\t" + restarts + "\t\t" + ageS + "\t\t" + namespace

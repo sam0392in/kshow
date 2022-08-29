@@ -35,13 +35,13 @@ var (
 
 	get            = app.Command("get", "get details of kubernetes objects")
 	k8sObject      = get.Arg("k8s object", "allowed objects: deployment, pods").Required().String()
-	namespace      = get.Flag("namespace", "Specify namespace. default is all namespace").Default("").String()
+	namespace      = get.Flag("namespace", "Specify namespace. default is all namespace").Short('n').Default("").String()
 	showToleration = get.Flag("show-tolerations", "show tolerations of a deloyment").Bool()
 	// Pod and Node Specific Argument
 	detailed = get.Flag("detailed", "Show extra details").Bool()
 
 	resourceStats  = app.Command("resource-stats", "Show current resource statistics")
-	statsNamespace = resourceStats.Flag("namespace", "Specify namespace. default is all namespace").Default("").String()
+	statsNamespace = resourceStats.Flag("namespace", "Specify namespace. default is all namespace").Short('n').Default("").String()
 	statsDetailed  = resourceStats.Flag("detailed", "show detailed resource statistics").Bool()
 )
 
@@ -82,14 +82,20 @@ func getMetrics() {
 	}
 }
 
+func getTest() {
+	metrics.GetTotalClusterResources()
+}
+
 func getObject() {
 	switch *k8sObject {
 	case "deployment", "deployments", "deploy":
 		getDeployments()
-	case "pods", "pod":
+	case "pods", "pod", "po":
 		getPods()
-	case "node", "nodes":
+	case "node", "nodes", "no":
 		getNodes()
+	case "test":
+		getTest()
 	}
 }
 
