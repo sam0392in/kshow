@@ -29,11 +29,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"kshow/internal/pod"
 	"os"
 	"path/filepath"
 	"strconv"
 	"text/tabwriter"
+
+	"github.com/sam0392in/kshow/internal/pod"
 
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

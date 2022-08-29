@@ -19,12 +19,13 @@ package pod
 import (
 	"context"
 	"fmt"
-	k8sclient "kshow/internal/client"
-	"kshow/internal/node"
 	"os"
 	"strconv"
 	"text/tabwriter"
 	"time"
+
+	k8sclient "github.com/sam0392in/kshow/internal/client"
+	"github.com/sam0392in/kshow/internal/node"
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"

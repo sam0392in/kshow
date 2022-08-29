@@ -19,11 +19,12 @@ package node
 import (
 	"context"
 	"fmt"
-	k8sclient "kshow/internal/client"
 	"os"
 	"strconv"
 	"text/tabwriter"
 	"time"
+
+	k8sclient "github.com/sam0392in/kshow/internal/client"
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"

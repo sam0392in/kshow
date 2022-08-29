@@ -19,11 +19,12 @@ package deployment
 import (
 	"context"
 	"fmt"
-	k8sclient "kshow/internal/client"
 	"os"
 	"strconv"
 	"strings"
 	"text/tabwriter"
+
+	k8sclient "github.com/sam0392in/kshow/internal/client"
 
 	"go.uber.org/zap"
 	v1 "k8s.io/api/apps/v1"

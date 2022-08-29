@@ -17,11 +17,12 @@ limitations under the License.
 package main
 
 import (
-	"kshow/internal/deployment"
-	"kshow/internal/metrics"
-	"kshow/internal/node"
-	"kshow/internal/pod"
 	"os"
+
+	"github.com/sam0392in/kshow/internal/deployment"
+	"github.com/sam0392in/kshow/internal/metrics"
+	"github.com/sam0392in/kshow/internal/node"
+	"github.com/sam0392in/kshow/internal/pod"
 
 	"go.uber.org/zap"
 	"gopkg.in/alecthomas/kingpin.v2"
