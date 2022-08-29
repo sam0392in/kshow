@@ -1,4 +1,5 @@
 # Kshow
+[![GitHub go.mod Go version of a Go module](https://img.shields.io/github/go-mod/go-version/gomods/athens.svg)](https://github.com/gomods/athens) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/sam0392in/kshow?include_prereleases)
 
 Kshow is a advanced Kubernetes CLI tool for quick access to k8s objects with custom commands.
 This project includes advanced features such as ```--show-tolerations``` , ```--detailed``` , ```resource-stats``` which existing kubernetes cli like kubectl lacks to provide.
@@ -124,8 +125,14 @@ app-server   app-backend-live-65b4d7fd57-9gcz8    23m   1457Mi
 ```
 kshow resource-stats --namespace <NAMESPACE> --detailed
 
-NAMESPACE  	  POD                              CONTAINER    CURRENT-CPU  REQUESTED-CPU  LIMIT-CPU  CURRENT-MEMORY  REQUESTED-MEMORY  LIMIT-MEMORY
-app-server    app-db-live-54c8d4897f-clfln     app-db        2m           300m           500m       313Mi           512Mi             768Mi
-app-server    app-ui-live-54c8d4897f-glzrz     app-ui        2m           300m           500m       507Mi           512Mi             768Mi
-app-server    app-backend-live-65bfd57-9gcz8   app-backend   6m           300m           500m       1005Mi          1600Mi            1600Mi
+-------------------------------------------------------------------------------------------------------
+Cluster Stats: 		Total CPU: 736 Cores		Total Memory: 1389 GB
+Namespace Stats: 	Consumed CPU: 0.9 Cores		Consumed Memory: 2.1 GB
+% Stats: 		    CPU: 0.12 %			        Memory: 0.15 %
+-------------------------------------------------------------------------------------------------------
+
+NAMESPACE  	  POD                              CONTAINER    CURRENT-CPU  REQ-CPU  LIMIT-CPU  CURRENT-MEM  REQ-MEM LIMIT-MEM
+app-server    app-db-live-54c8d4897f-clfln     app-db       2m          300m      500m       313Mi        512Mi    768Mi
+app-server    app-ui-live-54c8d4897f-glzrz     app-ui       2m          300m      500m       507Mi        12Mi     768Mi
+app-server    app-backend-live-65bfd57-9gcz8   app-backend  6m          300m      500m       1005Mi       1600Mi   1600Mi
 ```
