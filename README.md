@@ -1,12 +1,14 @@
 # Kshow
 [![GitHub go.mod Go version of a Go module](https://img.shields.io/github/go-mod/go-version/gomods/athens.svg)](https://github.com/gomods/athens) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/sam0392in/kshow?include_prereleases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/sam0392in/kshow)](https://goreportcard.com/report/github.com/sam0392in/kshow)
+
 
 Kshow is a advanced Kubernetes CLI tool for quick access to k8s objects with custom commands.
 This project includes advanced features such as ```--show-tolerations``` , ```--detailed``` , ```resource-stats``` which existing kubernetes cli like kubectl lacks to provide.
 
 ## Current Version
-- Stable Release: 0.0.2 
-- Alpha Release: 0.0.3
+- Stable Release: 0.0.3
+- Alpha Release: 0.0.4
 
 ## Project Owners
 - Samarth Kanungo
