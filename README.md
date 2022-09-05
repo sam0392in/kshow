@@ -7,8 +7,7 @@ Kshow is a advanced Kubernetes CLI tool for quick access to k8s objects with cus
 This project includes advanced features such as ```--show-tolerations``` , ```--detailed``` , ```resource-stats``` which existing kubernetes cli like kubectl lacks to provide.
 
 ## Current Version
-- Stable Release: 0.0.3
-- Alpha Release: 0.0.4
+- Stable Release: 0.0.4
 
 ## Project Owners
 - Samarth Kanungo
