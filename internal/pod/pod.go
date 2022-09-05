@@ -69,6 +69,45 @@ func GetPods(namespace *string) (*v1.PodList, error) {
 	return list, err
 }
 
+// Get the Age of pod
+func getPodAge(podCreationTime metav1.Time) string {
+	var ageS string
+	age := time.Since(podCreationTime.Time).Round(time.Second)
+	ageS = age.String()
+	if age.Hours() > 8760 {
+		ageInYears := int((age.Hours() + (age.Minutes() / 60)) / 8760)
+		ageS = strconv.Itoa(ageInYears) + "y"
+	} else if age.Hours() > 24 {
+		ageInDays := int((age.Hours() + (age.Minutes() / 60)) / 24)
+		ageS = strconv.Itoa(ageInDays) + "d"
+	} else if age.Hours() > 1 {
+		ageInHours := int(age.Hours() + (age.Minutes() / 60))
+		ageS = strconv.Itoa(ageInHours) + "h"
+	} else {
+		ageInMin := int(age.Minutes() + (age.Seconds() / 60))
+		ageS = strconv.Itoa(ageInMin) + "m"
+	}
+	return ageS
+}
+
+// Get Pod status
+func getPodStatus(podStatus v1.PodStatus) string {
+	var status string
+	if podStatus.Phase != "Running" && podStatus.Phase != "Succeeded" && len(podStatus.ContainerStatuses) != 0 {
+		for _, cs := range podStatus.ContainerStatuses {
+			if !(cs.Ready) && (cs.State.Waiting != nil) {
+				status = cs.State.Waiting.Reason
+				break
+			} else {
+				status = string(podStatus.Phase)
+			}
+		}
+	} else {
+		status = string(podStatus.Phase)
+	}
+	return status
+}
+
 // List pods
 func ListPods(namespace string) {
 	pods, err := GetPods(&namespace)
@@ -83,37 +122,13 @@ func ListPods(namespace string) {
 		// Calculate the age of the pod
 		var ageS string
 		podCreationTime := pod.GetCreationTimestamp()
-		age := time.Since(podCreationTime.Time).Round(time.Second)
-		ageS = age.String()
-		if age.Hours() > 8760 {
-			ageInYears := int((age.Hours() + (age.Minutes() / 60)) / 8760)
-			ageS = strconv.Itoa(ageInYears) + "y"
-		} else if age.Hours() > 24 {
-			ageInDays := int((age.Hours() + (age.Minutes() / 60)) / 24)
-			ageS = strconv.Itoa(ageInDays) + "d"
-		} else if age.Hours() > 1 {
-			ageInHours := int(age.Hours() + (age.Minutes() / 60))
-			ageS = strconv.Itoa(ageInHours) + "h"
-		} else {
-			ageInMin := int(age.Minutes() + (age.Seconds() / 60))
-			ageS = strconv.Itoa(ageInMin) + "m"
-		}
+		ageS = getPodAge(podCreationTime)
 
 		// Get the status of each of the pods
 		podStatus := pod.Status
 		var status string
-		if podStatus.Phase != "Running" && podStatus.Phase != "Succeeded" && len(podStatus.ContainerStatuses) != 0 {
-			for _, cs := range podStatus.ContainerStatuses {
-				if !(cs.Ready) && (cs.State.Waiting != nil) {
-					status = cs.State.Waiting.Reason
-					break
-				} else {
-					status = string(podStatus.Phase)
-				}
-			}
-		} else {
-			status = string(podStatus.Phase)
-		}
+		status = getPodStatus(podStatus)
+
 		var containerRestarts int32
 		var containerReady int
 		var totalContainers int
@@ -150,14 +165,25 @@ func ListPodswithNodeTenency(namespace string) {
 	nodes, err := node.ListNodes()
 
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
-	fmt.Fprintln(w, "POD\t\tSTATUS\t\tNAMESPACE\t\tNODE\t\tTENANCY")
+	fmt.Fprintln(w, "POD\t\tAGE\t\tSTATUS\t\tNAMESPACE\t\tNODE\t\tTENANCY")
 	for _, pod := range pods.Items {
 		for _, node := range nodes {
 			podNode := pod.Spec.NodeName
 			nodeName := node.ObjectMeta.Labels["kubernetes.io/hostname"]
 			nodeTenancy := node.ObjectMeta.Labels["eks.amazonaws.com/capacityType"]
 			if podNode == nodeName {
-				data := pod.Name + "\t\t" + string(pod.Status.Phase) + "\t\t" + pod.Namespace + "\t\t" + podNode + "\t\t" + nodeTenancy
+
+				// Calculate the age of the pod
+				var ageS string
+				podCreationTime := pod.GetCreationTimestamp()
+				ageS = getPodAge(podCreationTime)
+
+				// Get the status of each of the pods
+				podStatus := pod.Status
+				var status string
+				status = getPodStatus(podStatus)
+
+				data := pod.Name + "\t\t" + ageS + "\t\t" + status + "\t\t" + pod.Namespace + "\t\t" + podNode + "\t\t" + nodeTenancy
 				fmt.Fprintln(w, data)
 			}
 		}
