@@ -4,7 +4,7 @@
 
 
 Kshow is a advanced Kubernetes CLI tool for quick access to k8s objects with custom commands.
-This project includes advanced features such as ```--show-tolerations``` , ```--detailed``` , ```resource-stats``` which existing kubernetes cli like kubectl lacks to provide.
+This project includes advanced features and extended outputs those are important to know and helpful for Developers and DevOps, which existing kubernetes cli like kubectl lacks to provide.
 
 ## Current Version
 - Stable Release: 0.0.4
@@ -48,7 +48,10 @@ app-backend-live   app-server   2
 #### **List Deployments with Tolerations**
 
 ```
-kshow get deployments -n <NAMESPACE> --detailed
+kshow get deployments -n <NAMESPACE> --detailed.
+
+OD: On Demand
+SP: Spot
 
 DEPLOYMENT         NAMESPACE  READY DISTRIBUTION    TOLERATIONS
 app-db-live        app-server  3/3   OD:0 SP:3      nature-Equal-ondemand-NoSchedule
