@@ -4,7 +4,7 @@
 
 
 Kshow is a advanced Kubernetes CLI tool for quick access to k8s objects with custom commands.
-This project includes advanced features such as ```--show-tolerations``` , ```--detailed``` , ```resource-stats``` which existing kubernetes cli like kubectl lacks to provide.
+This project includes advanced features and extended outputs those are important to know and helpful for Developers and DevOps, which existing kubernetes cli like kubectl lacks to provide.
 
 ## Current Version
 - Stable Release: 0.0.4
@@ -48,7 +48,10 @@ app-backend-live   app-server   2
 #### **List Deployments with Tolerations**
 
 ```
-kshow get deployments -n <NAMESPACE> --detailed
+kshow get deployments -n <NAMESPACE> --detailed.
+
+OD: On Demand
+SP: Spot
 
 DEPLOYMENT         NAMESPACE  READY DISTRIBUTION    TOLERATIONS
 app-db-live        app-server  3/3   OD:0 SP:3      nature-Equal-ondemand-NoSchedule
@@ -83,7 +86,7 @@ app-backend-live-65b4d7fd57-9gcz8     Running    app-server   ip-172-28-6-173.eu
 
 ### Nodes
 
-#### **List Nodes**
+### **List Nodes**
 ```
 kshow get nodes
 
@@ -94,6 +97,13 @@ ip-172-21-0-216.eu-west-1.compute.internal   Ready   3d    v1.21.5-eks-9017834
 ```
 
 #### **List Nodes with Details**
+Below details are included in the output:
+- NodeGroup
+- Tenancy (On Demand / Spot)
+- Instance Type
+- Architecture of node
+- AWS Zone
+
 
 *NOTE: feature only available for AWS EKS*
 
@@ -114,9 +124,10 @@ ip-172-23-0-243.eu-west-1.compute.internal   Ready   3d    eks-spot       SPOT  
 
 ### Metrics
 
-#### **Get Metrics**
+### **Get Metrics**
 
-This feature shows current CPU and Memory consumption of pods.
+Get Metrics shows current ongoing CPU and Memory consumption of pods.
+
 
 ```
 kshow resource-stats -n <NAMESPACE>
@@ -127,7 +138,10 @@ app-server   app-ui-live-54c8d4897f-glzrz         2m    918Mi
 app-server   app-backend-live-65b4d7fd57-9gcz8    23m   1457Mi
 ```
 
-#### **Get Detailed Metrics**
+### **Get Detailed Metrics**
+
+Detailed Metrics shows comparision of Limit VS requested VS Current CPU and Memory for pods.
+
 ```
 kshow resource-stats -n <NAMESPACE> --detailed
 
