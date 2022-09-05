@@ -33,14 +33,13 @@ var (
 
 	app = kingpin.New("kshow", "A command-line tool for kubernetes.")
 
-	get            = app.Command("get", "get details of kubernetes objects")
-	k8sObject      = get.Arg("k8s object", "allowed objects: deployment, pods").Required().String()
-	namespace      = get.Flag("namespace", "Specify namespace. default is all namespace").Short('n').Default("").String()
-	showToleration = get.Flag("show-tolerations", "show tolerations of a deloyment").Bool()
-	// Pod and Node Specific Argument
-	detailed = get.Flag("detailed", "Show extra details").Bool()
+	get       = app.Command("get", "get details of kubernetes objects")
+	k8sObject = get.Arg("k8s object", "allowed objects: deployment, pods").Required().String()
+	namespace = get.Flag("namespace", "Specify namespace. default is all namespace").Short('n').Default("").String()
+	detailed  = get.Flag("detailed", "Show extra details").Bool()
 
 	resourceStats  = app.Command("resource-stats", "Show current resource statistics")
+	statsk8sObject = resourceStats.Arg("k8s object", "allowed objects: deployment, pods").String()
 	statsNamespace = resourceStats.Flag("namespace", "Specify namespace. default is all namespace").Short('n').Default("").String()
 	statsDetailed  = resourceStats.Flag("detailed", "show detailed resource statistics").Bool()
 )
@@ -51,8 +50,8 @@ func init() {
 }
 
 func getDeployments() {
-	if *showToleration {
-		deployment.ListDeploymentwithTolerations(*namespace)
+	if *detailed {
+		deployment.ListDeploymentDetailed(*namespace)
 	} else {
 		deployment.ListDeployments(*namespace)
 	}
@@ -75,15 +74,26 @@ func getNodes() {
 }
 
 func getMetrics() {
-	if *statsDetailed {
-		metrics.PrintContainerMetrics(*statsNamespace)
-	} else {
-		metrics.PrintPodMetrics(*statsNamespace)
+	switch *statsk8sObject {
+	case "deployment", "deployments", "deploy":
+		metrics.GetDeploymentsMetrics(*statsNamespace)
+	case "pods", "pod", "po":
+		if *statsDetailed {
+			metrics.PrintContainerMetrics(*statsNamespace)
+		} else {
+			metrics.PrintPodMetrics(*statsNamespace)
+		}
+	default:
+		if *statsDetailed {
+			metrics.PrintContainerMetrics(*statsNamespace)
+		} else {
+			metrics.PrintPodMetrics(*statsNamespace)
+		}
 	}
 }
 
 func getTest() {
-	metrics.GetTotalClusterResources()
+	// node.GetNodeCountPerNG()
 }
 
 func getObject() {

@@ -33,18 +33,20 @@ import (
 )
 
 var (
-	logger *zap.Logger
+	logger      *zap.Logger
+	lineBreaker string
 )
 
 func init() {
 	logger, _ = zap.NewProduction()
+	lineBreaker = "--------------------------------------------------------------------------------------------------------------------------------------"
 
 }
 
 func client(namepsace string) *kubernetes.Clientset {
 	clientset, err := k8sclient.GetK8sClient()
 	if err != nil {
-		logger.Error(err.Error())
+		fmt.Println(err.Error())
 	}
 	return clientset
 }
@@ -61,12 +63,78 @@ func ListNodes() ([]v1.Node, error) {
 	return nodes.Items, nil
 }
 
+// Get Nodegroups
+func getNodeGroups(nodes []v1.Node) []string {
+	keys := make(map[string]bool)
+	uniqueNG := []string{}
+	for _, n := range nodes {
+		ng := n.ObjectMeta.Labels["eks.amazonaws.com/nodegroup"]
+		if _, value := keys[ng]; !value {
+			keys[ng] = true
+			uniqueNG = append(uniqueNG, ng)
+		}
+	}
+	return uniqueNG
+}
+
+// Get Count of Node per Nodegroup
+func getNodeCountPerNG(nodes []v1.Node) map[string]int {
+	ngCount := make(map[string]int)
+	nglist := getNodeGroups(nodes)
+	for _, ng := range nglist {
+		count := 0
+		for _, n := range nodes {
+			specifiedNG := n.ObjectMeta.Labels["eks.amazonaws.com/nodegroup"]
+			if ng == specifiedNG {
+				count += 1
+			}
+		}
+		ngCount[ng] = count
+	}
+	return ngCount
+}
+
+// Get ClusterVersion
+func getClusterVersion(nodes []v1.Node) []string {
+	keys := make(map[string]bool)
+	versions := []string{}
+	for _, n := range nodes {
+		k8sVersion := n.Status.NodeInfo.KubeletVersion
+		if _, value := keys[k8sVersion]; !value {
+			keys[k8sVersion] = true
+			versions = append(versions, k8sVersion)
+		}
+	}
+	return versions
+}
+
+// Nod Output Header
+func NodeHeader(nodes []v1.Node) {
+	//get clusterversion
+	k8sVersion := getClusterVersion(nodes)
+	// Get NodeGroup Node Count
+	ngDetails := getNodeCountPerNG(nodes)
+
+	// Print Header
+	fmt.Println(lineBreaker)
+	fmt.Println("K8S-VERSION\t\t\tNODE-GROUP: NODECOUNT")
+	i := 0
+	j := len(k8sVersion)
+	for ng := range ngDetails {
+		if i < j {
+			fmt.Println(k8sVersion[i] + "\t\t" + ng + ":  " + strconv.Itoa(ngDetails[ng]))
+		} else {
+			fmt.Println("\t\t\t\t" + ng + ":  " + strconv.Itoa(ngDetails[ng]))
+		}
+		i++
+	}
+	fmt.Println(lineBreaker)
+}
+
 // Print List of Nodes
 func GetNodeDetails() {
-	nodes, err := ListNodes()
-	if err != nil {
-		logger.Error(err.Error())
-	}
+	nodes, _ := ListNodes()
+
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
 	fmt.Fprintln(w, "NODE\t\tSTATUS\t\tAGE\t\tVERSION")
 
@@ -112,12 +180,12 @@ func GetNodeDetails() {
 
 // Print Detailed Node Info
 func DetailedNodeInfo() {
-	nodes, err := ListNodes()
-	if err != nil {
-		logger.Error(err.Error())
-	}
+	nodes, _ := ListNodes()
+
+	NodeHeader(nodes)
+
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
-	fmt.Fprintln(w, "NODE\t\tSTATUS\t\tAGE\t\tNODEGROUP\t\tTENANCY\t\tINSTANCE-TYPE\t\tARCH\t\tAWS-ZONE\t\tVERSION")
+	fmt.Fprintln(w, "\nNODE\t\tSTATUS\t\tAGE\t\tNODEGROUP\t\tTENANCY\t\tINSTANCE-TYPE\t\tARCH\t\tAWS-ZONE")
 
 	for _, n := range nodes {
 
@@ -168,10 +236,7 @@ func DetailedNodeInfo() {
 		// AWS Zone
 		zone := n.ObjectMeta.Labels["topology.kubernetes.io/zone"]
 
-		// Node k8s version
-		nk8sVersion := n.Status.NodeInfo.KubeletVersion
-
-		data := name + "\t\t" + nstatus + "\t\t" + ageN + "\t\t" + nodegroup + "\t\t" + nodeTenancy + "\t\t" + nodeInstanceType + "\t\t" + arch + "\t\t" + zone + "\t\t" + nk8sVersion
+		data := name + "\t\t" + nstatus + "\t\t" + ageN + "\t\t" + nodegroup + "\t\t" + nodeTenancy + "\t\t" + nodeInstanceType + "\t\t" + arch + "\t\t" + zone + "\t\t"
 		fmt.Fprintln(w, data)
 	}
 	w.Flush()

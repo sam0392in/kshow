@@ -30,9 +30,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"text/tabwriter"
 
+	"github.com/sam0392in/kshow/internal/deployment"
 	"github.com/sam0392in/kshow/internal/node"
 	"github.com/sam0392in/kshow/internal/pod"
 	"go.uber.org/zap"
@@ -63,7 +65,7 @@ func client(namespace *string) (*metricsv.Clientset, error) {
 	config, _ := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	clientset, err := metricsv.NewForConfig(config)
 	if err != nil {
-		logger.Error(err.Error())
+		fmt.Println(err.Error())
 	}
 	return clientset, err
 }
@@ -90,7 +92,7 @@ func GetTotalNamespaceResources(namespace string) (float64, float64) {
 	)
 	nsCPU = 0
 	nsMEM = 0
-	clientset, err := client(&namespace)
+	clientset, _ := client(&namespace)
 	podMetricsList, err := clientset.MetricsV1beta1().PodMetricses(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		logger.Error(err.Error())
@@ -207,7 +209,7 @@ func PrintContainerMetrics(namespace string) {
 
 // Get Pod resource usage
 func getPodMetrics(namespace *string) (*v1beta1.PodMetricsList, error) {
-	clientset, err := client(namespace)
+	clientset, _ := client(namespace)
 	podMetricsList, err := clientset.MetricsV1beta1().PodMetricses(*namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		logger.Error(err.Error())
@@ -243,5 +245,67 @@ func PrintPodMetrics(namespace string) {
 		fmt.Fprintln(w, data)
 	}
 
+	w.Flush()
+}
+
+// Get Deployment resource metrics
+func GetDeploymentsMetrics(namespace string) {
+	deployments, err := deployment.GetDeployments(&namespace)
+
+	if err != nil {
+		logger.Error(err.Error())
+	}
+
+	podmetrics, err := getPodMetrics(&namespace)
+
+	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
+	fmt.Fprintln(w, "NAMESPACE\tDEPLOYMENT\tREQ-CPU\tCURRENT-CPU\t\tREQ-MEM\tCURRENT-MEM")
+
+	for _, deploy := range deployments.Items {
+		var (
+			reqcpu, currcpu, reqmem, currmem int
+		)
+
+		for _, pod := range podmetrics.Items {
+			podDeploymentName := deployment.GetDeploymentFromPod(pod.Name)
+			re := regexp.MustCompile("^" + deploy.Name + "$")
+			exactMatch := re.MatchString(podDeploymentName)
+
+			if exactMatch {
+				var (
+					mem          int64
+					cpu          float32
+					dcmem, dccpu int64
+				)
+				for _, c := range pod.Containers {
+					//container current cpu
+					a := c.Usage.Cpu()
+					cpu += float32(a.MilliValue())
+					//container current mem
+					b := c.Usage.Memory().Value()
+					mem += b
+					mem = mem / 1048859
+					//container requested cpu
+				}
+
+				for _, dc := range deploy.Spec.Template.Spec.Containers {
+					// deploymentcontainer requested cpu
+					a := dc.Resources.Requests.Memory().Value()
+					dcmem += a
+					b := dc.Resources.Requests.Cpu().MilliValue()
+					dccpu += b
+
+				}
+
+				currcpu += int(cpu)
+				currmem += int(mem)
+				reqcpu += int(dccpu)
+				reqmem += int(dcmem) / 1048576
+			}
+		}
+
+		data := deploy.Namespace + "\t" + deploy.Name + "\t" + strconv.Itoa(reqcpu) + "m\t" + strconv.Itoa(currcpu) + "m\t\t" + strconv.Itoa(reqmem) + "Mi\t" + strconv.Itoa(currmem) + "Mi"
+		fmt.Fprintln(w, data)
+	}
 	w.Flush()
 }

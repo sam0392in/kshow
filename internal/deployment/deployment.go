@@ -20,12 +20,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 
 	k8sclient "github.com/sam0392in/kshow/internal/client"
-
+	"github.com/sam0392in/kshow/internal/node"
+	"github.com/sam0392in/kshow/internal/pod"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +56,7 @@ func client(namespace *string) appsv1.DeploymentInterface {
 List Deployments,
 Returns list.items of Deployments
 */
-func getDeployments(namespace *string) (*v1.DeploymentList, error) {
+func GetDeployments(namespace *string) (*v1.DeploymentList, error) {
 	deploymentsClient := client(namespace)
 	list, err := deploymentsClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -63,9 +65,28 @@ func getDeployments(namespace *string) (*v1.DeploymentList, error) {
 	return list, err
 }
 
+// Extract Deployment name from pod name
+func GetDeploymentFromPod(podName string) string {
+	var deploymentName string
+	pod := strings.Split(podName, "-")
+	if len(pod) > 2 {
+		podID := pod[len(pod)-1]
+		replicasetID := pod[len(pod)-2]
+		deployment := strings.Split(podName, "-"+replicasetID+"-"+podID)
+		deploymentName = deployment[0]
+	} else {
+		podID := ""
+		replicasetID := ""
+		deployment := strings.Split(podName, "-"+replicasetID+"-"+podID)
+		deploymentName = deployment[0]
+	}
+
+	return deploymentName
+}
+
 // Print deployments
 func ListDeployments(namespace string) {
-	deployList, err := getDeployments(&namespace)
+	deployList, err := GetDeployments(&namespace)
 	if err != nil {
 		logger.Error(err.Error())
 	}
@@ -89,14 +110,62 @@ func ListDeployments(namespace string) {
 	w.Flush()
 }
 
-// List deployments with tolerations
-func ListDeploymentwithTolerations(namespace string) {
-	deployList, err := getDeployments(&namespace)
+// Get Pod extra details of Deployment
+func getPodDistribution(namespace, deployment string) (int, int, int, int) {
+	var podOnDemand, podSpot, podready, podtotal int
+	podOnDemand = 0
+	podSpot = 0
+	podready = 0
+	podtotal = 0
+	pods, err := pod.GetPods(&namespace)
+	if err != nil {
+		logger.Error(err.Error())
+	}
+	// get all nodes in the cluster
+	nodes, err := node.ListNodes()
+	if err != nil {
+		logger.Error(err.Error())
+	}
+
+	for _, pod := range pods.Items {
+		podDeploymentName := GetDeploymentFromPod(pod.Name)
+
+		re := regexp.MustCompile("^" + deployment + "$")
+		exactMatch := re.MatchString(podDeploymentName)
+
+		if exactMatch {
+			podtotal += 1
+			if pod.Status.Phase == "Running" {
+				podready += 1
+				for _, node := range nodes {
+					podNode := pod.Spec.NodeName
+					nodeName := node.ObjectMeta.Labels["kubernetes.io/hostname"]
+					nodeTenancy := node.ObjectMeta.Labels["eks.amazonaws.com/capacityType"]
+					if podNode == nodeName {
+						if nodeTenancy == "ON_DEMAND" {
+							podOnDemand += 1
+						} else if nodeTenancy == "SPOT" {
+							podSpot += 1
+						}
+						break
+					}
+				}
+			}
+		}
+
+	}
+
+	return podOnDemand, podSpot, podready, podtotal
+}
+
+// List deployments with Detailed
+func ListDeploymentDetailed(namespace string) {
+	deployList, err := GetDeployments(&namespace)
 	if err != nil {
 		logger.Error(err.Error())
 	}
 	w := tabwriter.NewWriter(os.Stdout, 1, 1, 1, ' ', 0)
-	fmt.Fprintln(w, "DEPLOYMENT\tNAMESPACE\tREPLICAS\tTOLERATIONS")
+	fmt.Fprintln(w, "DEPLOYMENT\tNAMESPACE\t\tREADY\tDISTRIBUTION\t\tTOLERATIONS")
 	for _, d := range deployList.Items {
 		r := d.Spec.Replicas
 		replicas := *r
@@ -108,7 +177,29 @@ func ListDeploymentwithTolerations(namespace string) {
 			tolerations = append(tolerations, tl)
 		}
 
-		data := d.Name + "\t" + d.Namespace + "\t" + strconv.FormatInt(int64(replicas), 10) + "\t" + strings.Join(tolerations, "::")
+		// get distribution
+		var distribution string
+		// var percentageOndemand, percentageSpot float64
+		podsOnDemand, podSpot, podReady, _ := getPodDistribution(namespace, d.Name)
+		/*
+			Disabled % distribution calculation.
+			Currently enabled is distribution based on count of pods
+		*/
+		// totalpods := podsOnDemand + podSpot
+		// if totalpods != 0 {
+		// 	percentageOndemand = math.Round(float64(podsOnDemand * 100 / totalpods))
+		// 	percentageSpot = math.Round(float64(podSpot * 100 / totalpods))
+		// } else {
+		// 	percentageOndemand = 0
+		// 	percentageSpot = 0
+		// }
+
+		podReadyStatus := strconv.Itoa(podReady) + "/" + strconv.Itoa(int(replicas))
+
+		// distribution = "OD:" + fmt.Sprintf("%.0f", percentageOndemand) + " SP:" + fmt.Sprintf("%.0f", percentageSpot)
+
+		distribution = "OD:" + strconv.Itoa(podsOnDemand) + " SP:" + strconv.Itoa(podSpot)
+		data := d.Name + "\t" + d.Namespace + "\t\t" + podReadyStatus + "\t" + distribution + "\t\t" + strings.Join(tolerations, "::")
 		fmt.Fprintln(w, data)
 
 	}
