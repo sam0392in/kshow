@@ -86,7 +86,7 @@ app-backend-live-65b4d7fd57-9gcz8     Running    app-server   ip-172-28-6-173.eu
 
 ### Nodes
 
-#### **List Nodes**
+### **List Nodes**
 ```
 kshow get nodes
 
@@ -97,6 +97,13 @@ ip-172-21-0-216.eu-west-1.compute.internal   Ready   3d    v1.21.5-eks-9017834
 ```
 
 #### **List Nodes with Details**
+Below details are included in the output:
+- NodeGroup
+- Tenancy (On Demand / Spot)
+- Instance Type
+- Architecture of node
+- AWS Zone
+
 
 *NOTE: feature only available for AWS EKS*
 
@@ -117,9 +124,10 @@ ip-172-23-0-243.eu-west-1.compute.internal   Ready   3d    eks-spot       SPOT  
 
 ### Metrics
 
-#### **Get Metrics**
+### **Get Metrics**
 
-This feature shows current CPU and Memory consumption of pods.
+Get Metrics shows current ongoing CPU and Memory consumption of pods.
+
 
 ```
 kshow resource-stats -n <NAMESPACE>
@@ -130,7 +138,10 @@ app-server   app-ui-live-54c8d4897f-glzrz         2m    918Mi
 app-server   app-backend-live-65b4d7fd57-9gcz8    23m   1457Mi
 ```
 
-#### **Get Detailed Metrics**
+### **Get Detailed Metrics**
+
+Detailed Metrics shows comparision of Limit VS requested VS Current CPU and Memory for pods.
+
 ```
 kshow resource-stats -n <NAMESPACE> --detailed
 
