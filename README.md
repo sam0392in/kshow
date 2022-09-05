@@ -101,9 +101,9 @@ ip-172-21-0-216.eu-west-1.compute.internal   Ready   3d    v1.21.5-eks-9017834
 ```
 kshow get nodes --detailed
 -----------------------------------------------------------------------------------------------------
-K8S-VERSION			    NODE-GROUP: NODECOUNT
+K8S-VERSION			NODE-GROUP: NODECOUNT
 v1.21.5-eks-9017834		eks-on-demand:  1
-				        eks-spot:  9
+				eks-spot:  9
 ------------------------------------------------------------------------------------------------------
 
 NODE                                         STATUS  AGE   NODEGROUP      TENANCY    INSTANCE-TYPE  ARCH   AWS-ZONE    
@@ -135,7 +135,7 @@ kshow resource-stats -n <NAMESPACE> --detailed
 -------------------------------------------------------------------------------------------------------
 Cluster Stats: 		Total CPU: 736 Cores		Total Memory: 1389 GB
 Namespace Stats: 	Consumed CPU: 0.9 Cores		Consumed Memory: 2.1 GB
-% Stats: 		    CPU: 0.12 %			        Memory: 0.15 %
+% Stats: 	        CPU: 0.12 %		        Memory: 0.15 %
 -------------------------------------------------------------------------------------------------------
 
 NAMESPACE  	  POD                              CONTAINER    CURRENT-CPU  REQ-CPU  LIMIT-CPU  CURRENT-MEM  REQ-MEM LIMIT-MEM
